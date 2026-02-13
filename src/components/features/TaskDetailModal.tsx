@@ -200,13 +200,27 @@ export const TaskDetailModal: React.FC<{ task: Task; onClose: () => void }> = ({
                                                 {att.type === 'link' ? <Icons.Link size={20} /> : att.type === 'audio' ? <Icons.Audio size={20} /> : <Icons.File size={20} />}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm text-gray-200 truncate">{att.name}</div>
+                                                <div className="text-sm text-gray-200 truncate pr-6">{att.name}</div>
                                                 <div className="text-[10px] text-gray-500">{new Date(att.createdAt).toLocaleDateString()}</div>
                                             </div>
+
+                                            {/* Delete Button */}
+                                            {/* Delete Button (Always Visible) */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm('¿Borrar adjunto?')) ctx.deleteAttachment(task.id, att.id);
+                                                }}
+                                                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-400 bg-black/60 hover:bg-black/80 transition-colors rounded-lg z-30"
+                                                title="Eliminar Adjunto"
+                                            >
+                                                <Icons.Delete size={14} />
+                                            </button>
+
                                             {att.type === 'audio' && (
-                                                <audio controls src={att.url} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                                <audio controls src={att.url} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                             )}
-                                            {att.type === 'link' && <a href={att.url} target="_blank" rel="noreferrer" className="absolute inset-0" />}
+                                            {att.type === 'link' && <a href={att.url} target="_blank" rel="noreferrer" className="absolute inset-0 z-10" />}
                                         </div>
                                     ))}
                                     {task.attachments.length === 0 && <div className="col-span-2 text-center py-4 border border-dashed border-white/10 rounded-xl text-gray-600 text-xs">Sin adjuntos</div>}

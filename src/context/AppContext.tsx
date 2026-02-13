@@ -26,6 +26,7 @@ interface AppContextType {
     updateActivity: (taskId: string, logId: string, newContent: string) => void;
     deleteActivity: (taskId: string, logId: string) => void;
     addAttachment: (taskId: string, type: Attachment['type'], name: string, url: string) => void;
+    deleteAttachment: (taskId: string, attachmentId: string) => void;
     toggleExpand: (taskId: string) => void;
     openTaskDetail: (task: Task) => void;
     activeTask: Task | null;
@@ -734,6 +735,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [currentUser, activeProjectId, modifyActiveProject]);
 
+    const deleteAttachment = useCallback(async (taskId: string, attachmentId: string) => {
+        if (!activeProjectId) return;
+
+        // Optimistic
+        modifyActiveProject(p => ({
+            ...p,
+            tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
+                ...t,
+                attachments: t.attachments.filter(a => a.id !== attachmentId)
+            }))
+        }));
+
+        // Database
+        const { data } = await supabase.from('tasks').select('attachments').eq('id', taskId).single();
+        if (data) {
+            const current = data.attachments || [];
+            const updated = current.filter((a: Attachment) => a.id !== attachmentId);
+            await supabase.from('tasks').update({ attachments: updated }).eq('id', taskId);
+        }
+    }, [activeProjectId, modifyActiveProject]);
+
     const toggleExpand = useCallback((taskId: string) => {
         modifyActiveProject(p => ({
             ...p,
@@ -792,7 +814,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             state, currentUser, users, activeProjectId, setActiveProjectId,
             addProject, updateProject, deleteProject, moveProject,
             addTask, updateTask, deleteTask, toggleTaskStatus,
-            moveTask, addActivity, updateActivity, deleteActivity, addAttachment, toggleExpand,
+            moveTask, addActivity, updateActivity, deleteActivity, addAttachment, deleteAttachment, toggleExpand,
             draggedTaskId, setDraggedTaskId,
             openTaskDetail: setActiveTask, activeTask, setActiveTask,
             searchQuery, setSearchQuery,
