@@ -1,11 +1,3 @@
-import React, { useContext, useState, memo } from 'react';
-import { Task, TaskStatus } from '../../types';
-import { AppContext } from '../../context/AppContext';
-import { Icons } from '../ui/Icons';
-import { Avatar } from '../ui/Avatar';
-import { ProgressRing } from '../ui/ProgressRing';
-import { getTaskProgress } from '../../utils/helpers';
-import { TASK_THEMES } from '../../constants/theme';
 
 import React, { useContext, useState, memo } from 'react';
 import { Task, TaskStatus } from '../../types';
@@ -29,8 +21,15 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
     const effectiveThemeIndex = React.useMemo(() => {
         if (depth === 0) return deterministicIndex;
         if (depth === 1) {
-            return Math.abs(task.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % TASK_THEMES.length;
+            // Level 1 Subtasks: Shift color by 1 from parent to ensure distinction
+            // We use the parent's passed themeIndex (if available) and add 1
+            if (themeIndex !== undefined) {
+                return (themeIndex + 2) % TASK_THEMES.length;
+            }
+            // Fallback if no theme passed (shouldn't happen in tree)
+            return (deterministicIndex + 2) % TASK_THEMES.length;
         }
+        // Level 2+ Subtasks: Inherit the SAME theme as their Level 1 parent
         return themeIndex ?? deterministicIndex;
     }, [depth, task.id, themeIndex, deterministicIndex]);
 
@@ -49,8 +48,8 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
 
     let opacityValue;
     if (depth === 0) opacityValue = 25;
-    else if (depth === 1) opacityValue = 30;
-    else opacityValue = Math.max(5, 30 - ((depth - 1) * 5));
+    else if (depth === 1) opacityValue = 40; // Slightly more opaque to stand out against parent
+    else opacityValue = Math.max(10, 40 - ((depth - 1) * 5)); // Fade out slightly as we go deeper
 
     const colorBasename = theme.name.toLowerCase();
 
@@ -228,9 +227,9 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
                                     </button>
                                 </div>
 
-                                {owner && (
-                                    <div className="text-[10px] text-gray-500/80 font-medium">
-                                        {owner.name}
+                                {owner && owner.name && (
+                                    <div className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                                        POR: {owner.name.split(' ')[0]}
                                     </div>
                                 )}
                             </div>
@@ -241,7 +240,7 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
                 {/* Right Side: Progress Indicator (Redesigned) */}
                 {!isLeaf && (
                     <div className="flex flex-col items-center justify-center pl-4 border-l border-white/5 gap-1 min-w-[60px]">
-                        <ProgressRing radius={18} stroke={3} progress={progress} />
+                        <ProgressRing size={36} stroke={3} progress={progress} />
                         <span className="text-[10px] font-bold text-gray-400">{Math.round(progress)}%</span>
                     </div>
                 )}
