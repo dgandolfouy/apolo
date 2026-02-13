@@ -227,9 +227,9 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
                                     </button>
                                 </div>
 
-                                {owner && owner.name && (
+                                {(owner?.name || task.createdBy) && (
                                     <div className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                                        POR: {owner.name.split(' ')[0]}
+                                        POR: {owner?.name ? owner.name.split(' ')[0] : (task.createdBy === ctx.currentUser?.id ? 'YO' : '...')}
                                     </div>
                                 )}
                             </div>
