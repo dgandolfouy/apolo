@@ -38,7 +38,7 @@ export const IntroScreen: React.FC = () => {
 
             <div className="mt-20 opacity-0 animate-fade-in" style={{ animationDelay: '0.5s' }}>
                 <p className="text-gray-700 text-[10px] tracking-widest uppercase">
-                    Designed by Daniel Gandolfo
+                    Diseñado por Daniel Gandolfo para Guten.uy
                 </p>
             </div>
         </div>
