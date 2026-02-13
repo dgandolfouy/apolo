@@ -467,10 +467,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // TASKS
     const addTask = useCallback(async (parentId: string | null, title: string) => {
         if (!currentUser || !activeProjectId) return;
-        const tempId = generateId();
+        const currentTasks = state.projects.find(p => p.id === activeProjectId)?.tasks || [];
+        const maxPos = currentTasks.reduce((max, t) => Math.max(max, t.position || 0), 0);
+
         const newTask: Task = {
             id: tempId, title, status: TaskStatus.PENDING, attachments: [], tags: [], subtasks: [], expanded: true, createdBy: currentUser.id,
-            activity: []
+            activity: [],
+            position: maxPos + 1000 // Ensure it goes to bottom
         };
 
         modifyActiveProject(p => {
@@ -484,7 +487,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 project_id: activeProjectId,
                 parent_id: parentId,
                 title,
-                status: 'pending'
+                status: 'pending',
+                created_by: currentUser.id, // Explicitly save created_by
+                position: maxPos + 1000
             }).select().single();
 
             if (data) {
