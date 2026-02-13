@@ -13,7 +13,7 @@ export const IntroScreen: React.FC = () => {
                     APOLO
                 </h1>
                 <p className="text-gray-500 mt-4 font-sans font-light tracking-[0.4em] text-[10px] md:text-xs">
-                    SISTEMA OPERATIVO v0.9.23
+                    SISTEMA OPERATIVO v0.9.65
                 </p>
             </div>
 
