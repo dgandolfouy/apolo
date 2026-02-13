@@ -204,6 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 rawTasks.forEach((t: any) => {
                     taskMap.set(t.id, {
                         ...t,
+                        createdBy: t.created_by, // CRITICAL FIX: Map snake_case to camelCase
                         createdAt: new Date(t.created_at).getTime(),
                         subtasks: [],
                         attachments: t.attachments || [],
