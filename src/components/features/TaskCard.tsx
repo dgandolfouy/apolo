@@ -33,7 +33,8 @@ export const TaskCard: React.FC<{ task: Task; depth: number; themeIndex?: number
         return themeIndex ?? deterministicIndex;
     }, [depth, task.id, themeIndex, deterministicIndex]);
 
-    const theme = TASK_THEMES[effectiveThemeIndex];
+    const theme = TASK_THEMES[effectiveThemeIndex] || TASK_THEMES[0];
+    if (!theme) return null; // Critical safety check
 
     if (!ctx) return null;
 
