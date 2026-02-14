@@ -1,8 +1,9 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { Task, TaskStatus } from '../../types';
 import { AppContext } from '../../context/AppContext';
-import { Icons } from '../../ui/Icons';
-import { ProgressRing } from '../../ui/ProgressRing';
+// CORRECCIÓN: Usamos '../' porque 'ui' está hermano de 'features' dentro de 'components'
+import { Icons } from '../ui/Icons'; 
+import { ProgressRing } from '../ui/ProgressRing';
 import { getTaskProgress } from '../../utils/helpers';
 import { TASK_THEMES } from '../../constants/theme';
 
@@ -14,16 +15,15 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
     const [isInside, setIsInside] = useState(false); // For drag UX
     const [isAdding, setIsAdding] = useState(false); // For subtask input
 
-    // --- 1. LÓGICA DE COLORES (Sin cambios) ---
+    // --- 1. LÓGICA DE COLORES ---
     const effectiveThemeIndex = React.useMemo(() => {
         if (themeIndex !== undefined) return themeIndex;
-        // Logic to inherit color based on depth...
         return Math.abs(task.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % TASK_THEMES.length;
     }, [task.id, themeIndex]);
 
     const theme = TASK_THEMES[effectiveThemeIndex] || TASK_THEMES[0];
 
-    // --- 2. LOGICA DRAG & DROP (Simplificada para lectura) ---
+    // --- 2. LOGICA DRAG & DROP ---
     const handleDragStart = (e: React.DragEvent) => {
         e.stopPropagation();
         e.dataTransfer.setData('text/plain', task.id);
@@ -37,7 +37,6 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
         setIsInside(false);
         const draggedId = e.dataTransfer.getData('text/plain');
         if (draggedId !== task.id) {
-            // Simple logic: if dropped on top half -> before, bottom half -> after, center -> inside
             const rect = e.currentTarget.getBoundingClientRect();
             const y = e.clientY - rect.top;
             if (y < 10) ctx?.moveTask(draggedId, task.id, 'before');
@@ -48,9 +47,6 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
     };
 
     // --- 3. RENDERIZADO ---
-    
-    // NOTA: Aquí borré la variable "typeLabel" que decía TAREA/SUBTAREA
-    
     const progress = getTaskProgress(task);
     const isCompleted = task.status === TaskStatus.COMPLETED;
 
@@ -69,7 +65,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
             `}
             style={{ 
                 borderLeftColor: theme.color,
-                marginLeft: `${depth * 1.5}rem` // Identación visual
+                marginLeft: `${depth * 1.5}rem` 
             }}
         >
             {/* Header de la Tarjeta */}
@@ -93,20 +89,16 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                         <h4 className={`text-base font-medium truncate pr-4 ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
                             {task.title}
                         </h4>
-                        
-                        {/* AQUI QUITAMOS EL SPAN QUE DECIA {typeLabel} 
-                           SOLO DEJAMOS EL PROGRESO SI TIENE SUBTAREAS 
-                        */}
                     </div>
 
-                    {/* Descripción Corta (si existe) */}
+                    {/* Descripción Corta */}
                     {task.description && (
                         <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
                     )}
 
-                    {/* Footer de la tarjeta: Iconos y Progreso */}
+                    {/* Footer de la tarjeta */}
                     <div className="flex items-center gap-4 mt-3">
-                        {/* Botón Expandir/Colapsar Subtareas */}
+                        {/* Botón Expandir/Colapsar */}
                         {task.subtasks.length > 0 && (
                             <button 
                                 onClick={(e) => { e.stopPropagation(); ctx?.toggleExpand(task.id); }}
@@ -117,7 +109,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                             </button>
                         )}
                         
-                        {/* Indicador de Adjuntos */}
+                        {/* Adjuntos */}
                         {task.attachments?.length > 0 && (
                             <div className="flex items-center gap-1 text-gray-500">
                                 <Icons.Paperclip size={12} />
@@ -125,7 +117,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                             </div>
                         )}
 
-                        {/* Barra de Progreso Mini (Si hay subtareas) */}
+                        {/* Barra de Progreso */}
                         {task.subtasks.length > 0 && (
                             <div className="flex items-center gap-2 ml-auto">
                                 <div className="w-16 h-1 bg-gray-700 rounded-full overflow-hidden">
@@ -138,7 +130,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                 </div>
             </div>
 
-            {/* SECCIÓN SUBTAREAS (Renderizado Recursivo) */}
+            {/* SECCIÓN SUBTAREAS */}
             {task.expanded && (
                 <div className="mt-4 space-y-2 border-t border-white/5 pt-4">
                     {task.subtasks.map((sub, idx) => (
@@ -146,14 +138,11 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                             key={sub.id} 
                             task={sub} 
                             depth={depth + 1} 
-                            themeIndex={effectiveThemeIndex + 1} // Alternar colores
+                            themeIndex={effectiveThemeIndex + 1}
                         />
                     ))}
 
-                    {/* BOTÓN AGREGAR SUBTAREA CORREGIDO 
-                        - Quitada la clase "opacity-0" y "group-hover" para que siempre se vea.
-                        - Agregado estilo más obvio (+ Añadir Subtarea)
-                    */}
+                    {/* BOTÓN AGREGAR SUBTAREA CORREGIDO */}
                     {!isAdding ? (
                         <button 
                             onClick={() => setIsAdding(true)}
@@ -178,7 +167,6 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                                     if (e.key === 'Enter') {
                                         ctx?.addTask(task.id, e.currentTarget.value);
                                         e.currentTarget.value = '';
-                                        // No cerramos setIsAdding para permitir agregar varias seguidas
                                     }
                                     if (e.key === 'Escape') setIsAdding(false);
                                 }}
