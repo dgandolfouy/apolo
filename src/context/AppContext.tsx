@@ -13,7 +13,7 @@ interface AppContextType {
     setActiveProjectId: (id: string | null) => void;
     addProject: (title: string, subtitle: string) => void;
     updateProject: (id: string, updates: Partial<Project>) => void;
-    moveProject: (draggedId: string, targetId: string) => void; // New
+    moveProject: (draggedId: string, targetId: string) => void;
     deleteProject: (id: string) => void;
     updateCurrentUser: (updates: Partial<User>) => void;
     logout: () => void;
@@ -141,7 +141,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 .from('projects')
                 .select('*')
                 .eq('owner_id', currentUser.id)
-                .order('position', { ascending: true, nullsFirst: false }) // RESTORED v8
+                .order('position', { ascending: true, nullsFirst: false })
                 .order('created_at', { ascending: false });
 
             if (ownedError) throw ownedError;
@@ -149,7 +149,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // 2. Fetch Shared Projects (Graceful fallback)
             let sharedProjects: any[] = [];
             try {
-                // ... (Shared logic remains similar, but simplified if needed)
                 const { data: sharedIds } = await supabase
                     .from('project_members')
                     .select('project_id')
@@ -161,7 +160,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         .from('projects')
                         .select('*')
                         .in('id', ids)
-                        .order('position', { ascending: true }); // RESTORED v8
+                        .order('position', { ascending: true });
                     if (sharedData) sharedProjects = sharedData;
                 }
             } catch (err) {
@@ -170,11 +169,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             // Merge and Sort
             let allProjectsRaw = [...(ownedProjects || []), ...sharedProjects];
-            // Deduplicate just in case
             allProjectsRaw = Array.from(new Map(allProjectsRaw.map(p => [p.id, p])).values());
 
-            // Sort by position (if available) or fallback to created_at
-            allProjectsRaw.sort((a, b) => { // RESTORED v8 Logic
+            allProjectsRaw.sort((a, b) => {
                 const posA = a.position !== null ? a.position : 0;
                 const posB = b.position !== null ? b.position : 0;
                 if (posA !== posB) return posA - posB;
@@ -197,14 +194,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // 4. Process Data
             const projects: Project[] = allProjectsRaw.map((p: any) => {
                 const rawTasks = tasksData.filter((t: any) => t.project_id === p.id);
-                // ... (Tree building remains same)
+                
                 const taskMap = new Map();
                 const rootTasks: Task[] = [];
 
                 rawTasks.forEach((t: any) => {
                     taskMap.set(t.id, {
                         ...t,
-                        createdBy: t.created_by, // CRITICAL FIX: Map snake_case to camelCase
+                        createdBy: t.created_by,
                         createdAt: new Date(t.created_at).getTime(),
                         subtasks: [],
                         attachments: t.attachments || [],
@@ -230,8 +227,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     color: p.color,
                     createdBy: p.owner_id,
                     createdAt: new Date(p.created_at).getTime(),
-                    imageUrl: p.image_url, // MAP IMAGE URL HERE
-                    position: p.position,   // MAP POSITION HERE
+                    imageUrl: p.image_url,
+                    position: p.position,
                     tasks: rootTasks
                 };
             });
@@ -239,7 +236,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setState({ projects });
 
             // 5. Fetch All Users (for Avatars)
-            // 5. Fetch All Users (for Avatars) - FROM PROFILES (Where Google data lives)
             const { data: allUsers } = await (supabase as any).from('profiles').select('*');
             if (allUsers) {
                 const mappedUsers = allUsers.map((u: any) => ({
@@ -251,17 +247,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 }));
                 setUsers(mappedUsers);
 
-                // Fix: Sync currentUser with Source of Truth (Database), overriding stale Auth Metadata
                 const myProfile = mappedUsers.find((u: any) => u.id === currentUser.id);
                 if (myProfile) {
-                    // Only update if different to avoid loop? setUsers/setCurrentUser might trigger re-renders.
-                    // But we need to ensure the view is correct.
-                    // We merge with existing currentUser to keep ID/Email if missing in profile (unlikely now)
                     setCurrentUser(prev => prev ? { ...prev, name: myProfile.name, avatarUrl: myProfile.avatarUrl } : prev);
                 }
             }
 
-            // ... (Handle Invites)
+            // Handle Invites
             const urlParams = new URLSearchParams(window.location.search);
             const inviteProjectId = urlParams.get('invite');
             if (inviteProjectId && !projects.some(p => p.id === inviteProjectId)) {
@@ -270,7 +262,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         } catch (error: any) {
             console.error("Critical Error fetching data:", error);
-            // alert("Error de conexión..."); // Suppress alert for better UX if needed, or keep
         } finally {
             setIsLoading(false);
         }
@@ -286,44 +277,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
 
             if (error) {
-                if (error.code === '23505') { // Unique violation
+                if (error.code === '23505') {
                     console.log("Already a member");
                 } else {
                     throw error;
                 }
             } else {
                 alert("¡Te has unido al proyecto exitosamente!");
-                fetchUserData(); // Refresh to show new project
+                fetchUserData();
             }
         } catch (e) {
             console.error("Error joining project:", e);
             alert("Error al unirse al proyecto. Verifica el enlace.");
-        }
-    };
-
-    // --- Welcome Project Logic (Replaces Trigger) ---
-    const createWelcomeProject = async () => {
-        if (!currentUser) return;
-        try {
-            const { data: newProject, error } = await supabase.from('projects').insert({
-                owner_id: currentUser.id,
-                title: 'Proyecto de Ejemplo',
-                subtitle: '¡Bienvenido a Apolo!',
-                color: 'indigo',
-                position: 1 // V7: Added position
-            }).select().single();
-
-            if (error || !newProject) throw error;
-
-            await supabase.from('tasks').insert([
-                { project_id: newProject.id, title: 'Explorar Apolo', status: 'pending', position: 1 },
-                { project_id: newProject.id, title: 'Personalizar mi Perfil', status: 'pending', position: 2 },
-            ]);
-
-            // Refetch to populate UI
-            fetchUserData();
-        } catch (e) {
-            console.error("Error creating welcome project:", e);
         }
     };
 
@@ -335,7 +300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setState({ projects: [] });
             setActiveProjectId(null);
         }
-    }, [currentUser?.id]); // Stable dependency
+    }, [currentUser?.id]);
 
     // --- CRUD Operations ---
 
@@ -344,7 +309,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsSyncing(true);
         const tempId = generateId();
         const color = getRandomColor();
-        // Default position: End of list (roughly)
         const position = Date.now() / 1000;
 
         const newProject: Project = {
@@ -352,21 +316,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             position
         };
 
-        // Optimistic
-        setState(prev => ({ projects: [newProject, ...prev.projects] })); // Add to top for UI feedback? Or bottom?
-        // Actually, if we sort by position asc, new ones with high position go to bottom.
-        // Let's stick to user expectation: New projects usually appear at top or bottom?
-        // If sorting by position ASC, larger number = bottom.
-        // If we want new projects at TOP, give them smaller position.
-        // Let's set position to -Date.now() if we want top? 
-        // Or just let user manage it. Default behavior for now: Bottom.
+        // Optimistic Update
+        setState(prev => ({ projects: [newProject, ...prev.projects] }));
 
         try {
             const { data, error } = await supabase.from('projects').insert({
-                owner_id: currentUser.id, title, subtitle, color, position // RESTORED v8
+                owner_id: currentUser.id, // REQUIRED for RLS
+                title, 
+                subtitle, 
+                color, 
+                position
             }).select().single();
 
-            if (error) throw error; // Explicit throw
+            if (error) throw error;
 
             if (data) {
                 setState(prev => ({
@@ -375,7 +337,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
         } catch (e: any) {
             console.error("Error adding project:", e);
-            alert(`Error guardando proyecto: ${e.message}. Asegúrate de ejecutar el script SQL v8.`);
+            alert(`Error al crear proyecto: ${e.message || "Verifica tu conexión"}`);
         } finally {
             setIsSyncing(false);
         }
@@ -383,21 +345,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const deleteProject = useCallback(async (id: string) => {
         setIsSyncing(true);
-        const originalProjects = state.projects; // Backup for rollback
+        const originalProjects = state.projects;
 
-        // Optimistic
         setState(prev => ({ projects: prev.projects.filter(p => p.id !== id) }));
         if (activeProjectId === id) setActiveProjectId(null);
 
         try {
-            // Database
             const { error } = await supabase.from('projects').delete().eq('id', id);
             if (error) throw error;
         } catch (e: any) {
             console.error("Error deleting project:", e);
-            // Rollback
             setState({ projects: originalProjects });
-            alert(`Error al borrar: ${e.message || "Error desconocido"}. Verifica tu conexión o permisos.`);
+            alert(`Error al borrar: ${e.message}. Verifica permisos.`);
         } finally {
             setIsSyncing(false);
         }
@@ -405,13 +364,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
         setState(prev => ({ projects: prev.projects.map(p => p.id === id ? { ...p, ...updates } : p) }));
-        // DB map
+        
         const dbUpdates: any = {};
         if (updates.title) dbUpdates.title = updates.title;
         if (updates.subtitle) dbUpdates.subtitle = updates.subtitle;
         if (updates.color) dbUpdates.color = updates.color;
-        if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl; // RESTORED v8
-        if (updates.position !== undefined) dbUpdates.position = updates.position; // RESTORED v8
+        if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+        if (updates.position !== undefined) dbUpdates.position = updates.position;
 
         if (Object.keys(dbUpdates).length > 0) {
             await supabase.from('projects').update(dbUpdates).eq('id', id);
@@ -427,40 +386,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (draggedIndex === -1 || targetIndex === -1) return;
 
-        // 1. Reorder Array Locally
         const [draggedProject] = currentProjects.splice(draggedIndex, 1);
         currentProjects.splice(targetIndex, 0, draggedProject);
 
-        // 2. Calculate New Position
-        // We need to find the neighbors of the new position to calculate the midpoint.
-        // After splicing, the project is at `targetIndex`.
         const prevProject = targetIndex > 0 ? currentProjects[targetIndex - 1] : null;
         const nextProject = targetIndex < currentProjects.length - 1 ? currentProjects[targetIndex + 1] : null;
 
         let newPosition = 0;
         if (!prevProject) {
-            // Moved to top: smaller than first
             newPosition = (nextProject?.position || Date.now() / 1000) - 1000;
         } else if (!nextProject) {
-            // Moved to bottom: larger than last
             newPosition = (prevProject.position || 0) + 1000;
         } else {
-            // In between
             newPosition = ((prevProject.position || 0) + (nextProject.position || 0)) / 2;
         }
 
-        // Update local state immediately (UI feels fast)
-        // We only update the dragged project's position in memory for sorting?
-        // Actually, since we map projects, we should update the valid object.
-        draggedProject.position = newPosition; // Direct mutation for local state consistency
+        draggedProject.position = newPosition;
         setState({ projects: currentProjects });
 
-        // 3. Persist to DB
         try {
             await supabase.from('projects').update({ position: newPosition }).eq('id', draggedId);
         } catch (e) {
             console.error("Error moving project:", e);
-            // Revert state? For now, we assume success or user reloads.
         }
     }, [state.projects]);
 
@@ -470,10 +417,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const currentTasks = state.projects.find(p => p.id === activeProjectId)?.tasks || [];
         const maxPos = currentTasks.reduce((max, t) => Math.max(max, t.position || 0), 0);
 
+        const tempTaskId = generateId();
+
         const newTask: Task = {
-            id: tempId, title, status: TaskStatus.PENDING, attachments: [], tags: [], subtasks: [], expanded: true, createdBy: currentUser.id,
+            id: tempTaskId, title, status: TaskStatus.PENDING, attachments: [], tags: [], subtasks: [], expanded: true, createdBy: currentUser.id,
             activity: [],
-            position: maxPos + 1000 // Ensure it goes to bottom
+            position: maxPos + 1000
         };
 
         modifyActiveProject(p => {
@@ -483,22 +432,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Database
         try {
-            const { data } = await supabase.from('tasks').insert({
+            const { data, error } = await supabase.from('tasks').insert({
                 project_id: activeProjectId,
                 parent_id: parentId,
                 title,
                 status: 'pending',
-                created_by: currentUser.id, // Explicitly save created_by
+                created_by: currentUser.id,
+                owner_id: currentUser.id, // --- CORRECCION CRITICA: Agregado owner_id para RLS ---
                 position: maxPos + 1000
             }).select().single();
 
+            if (error) throw error;
+
             if (data) {
-                // We rely on refresh or just assume success. 
-                // Updating ID locally is hard in deep tree without full refresh.
-                // For Stability: trigger silent background refresh
-                fetchUserData();
+                // Background refresh to sync real ID if needed, though optimistic ID usually fine for session
+                 fetchUserData();
             }
-        } catch (e) { console.error(e); }
+        } catch (e: any) { 
+            console.error("Error adding task:", e);
+            alert(`Error al guardar tarea: ${e.message || "Revisa permisos de owner_id"}`);
+        }
 
     }, [currentUser, activeProjectId, modifyActiveProject, fetchUserData]);
 
@@ -512,7 +465,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const dbUpdates: any = {};
         if (updates.title) dbUpdates.title = updates.title;
-        if (updates.description !== undefined) dbUpdates.description = updates.description; // Added v10
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
         if (updates.status) dbUpdates.status = updates.status === TaskStatus.COMPLETED ? 'completed' : 'pending';
         if (updates.expanded !== undefined) dbUpdates.expanded = updates.expanded;
 
@@ -523,7 +476,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const toggleTaskStatus = useCallback((taskId: string) => {
         if (!activeProjectId) return;
-        // Find task to toggle
         const project = state.projects.find(p => p.id === activeProjectId);
         if (!project) return;
 
@@ -541,26 +493,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [activeProjectId, state.projects, updateTask]);
 
-
-
     // --- MOVE TASK (Drag & Drop) ---
     const moveTask = useCallback(async (draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => {
         if (!activeProjectId) return;
         const project = state.projects.find(p => p.id === activeProjectId);
         if (!project) return;
 
-        // 1. Optimistic Update
         let draggedTask: Task | null = null;
         let newParentId: string | null = null;
         let newPosition: number = 0;
 
         const newStateProjects = state.projects.map(p => {
             if (p.id !== activeProjectId) return p;
-
-            // Deep clone to avoid mutation issues
             const clonedTasks = JSON.parse(JSON.stringify(p.tasks));
 
-            // Helper to find and remove
             const removeTask = (list: Task[]): boolean => {
                 const idx = list.findIndex(t => t.id === draggedId);
                 if (idx !== -1) {
@@ -571,40 +517,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 return list.some(t => removeTask(t.subtasks));
             };
 
-            // Helper to find target and insert
             const insertTask = (list: Task[], parent: string | null = null): boolean => {
                 const idx = list.findIndex(t => t.id === targetId);
                 if (idx !== -1) {
                     if (position === 'inside') {
-                        // Insert as first subtask
-                        // Position logic for 'inside':
-                        // If list is empty, use default (e.g. 1000).
-                        // If not empty, take first item's position / 2?
-                        // For simplicity, we just put it at 0 index locally.
                         const firstChild = list[idx].subtasks[0];
                         newPosition = firstChild ? (firstChild.position || 0) / 2 : 1000;
-
                         list[idx].subtasks.unshift(draggedTask!);
                         list[idx].expanded = true;
                         newParentId = targetId;
                     } else {
                         const insertIdx = position === 'before' ? idx : idx + 1;
-
-                        // Calculate Position Logic v0.9.64
                         const prevItem = list[insertIdx - 1];
-                        const nextItem = list[insertIdx]; //Item at insertIdx is the one that will be shifted right, or null if end
-
+                        const nextItem = list[insertIdx]; 
                         const prevPos = prevItem ? (prevItem.position || 0) : 0;
-                        const nextPos = nextItem ? (nextItem.position || 0) : (prevPos + 2000); // If no next, add buffer
-
-                        // New Position is average
+                        const nextPos = nextItem ? (nextItem.position || 0) : (prevPos + 2000); 
                         newPosition = (prevPos + nextPos) / 2;
-
-                        // Safety check for collision (if precision loss makes them equal)
                         if (newPosition === prevPos || newPosition === nextPos) {
-                            newPosition = prevPos + 0.001; // Tiny offset fallback
+                            newPosition = prevPos + 0.001;
                         }
-
                         list.splice(insertIdx, 0, draggedTask!);
                         newParentId = parent;
                     }
@@ -616,30 +547,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             removeTask(clonedTasks);
             if (draggedTask) {
                 insertTask(clonedTasks);
-                // Update local task object with new position
                 draggedTask.position = newPosition;
             }
-
             return { ...p, tasks: clonedTasks };
         });
 
         setState({ projects: newStateProjects });
-
-        // Fix v0.9.64: Immediate State Cleanup to remove "Moving..." placeholder
         setDraggedTaskId(null);
 
-        // 2. Database Update
         if (draggedTask) {
             const updates: any = {};
             if (newParentId !== undefined) updates.parent_id = newParentId;
-            // Fix v0.9.64: Persist Position
             if (newPosition !== undefined) updates.position = newPosition;
-
             await supabase.from('tasks').update(updates).eq('id', draggedId);
         }
-
     }, [activeProjectId, state.projects]);
-
 
     // --- ATTACHMENTS & ACTIVITY ---
     const addActivity = useCallback(async (taskId: string, content: string, type: ActivityLog['type']) => {
@@ -653,7 +575,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             createdBy: currentUser.id
         };
 
-        // Optimistic
         modifyActiveProject(p => ({
             ...p,
             tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
@@ -662,7 +583,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }))
         }));
 
-        // Database (Append to JSONB)
         const { data } = await supabase.from('tasks').select('activity').eq('id', taskId).single();
         if (data) {
             const current = data.activity || [];
@@ -672,8 +592,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updateActivity = useCallback(async (taskId: string, logId: string, newContent: string) => {
         if (!activeProjectId) return;
-
-        // Optimistic
         modifyActiveProject(p => ({
             ...p,
             tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
@@ -681,8 +599,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 activity: t.activity.map(a => a.id === logId ? { ...a, content: newContent } : a)
             }))
         }));
-
-        // Database
         const { data } = await supabase.from('tasks').select('activity').eq('id', taskId).single();
         if (data) {
             const current = data.activity || [];
@@ -693,8 +609,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const deleteActivity = useCallback(async (taskId: string, logId: string) => {
         if (!activeProjectId) return;
-
-        // Optimistic
         modifyActiveProject(p => ({
             ...p,
             tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
@@ -702,8 +616,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 activity: t.activity.filter(a => a.id !== logId)
             }))
         }));
-
-        // Database
         const { data } = await supabase.from('tasks').select('activity').eq('id', taskId).single();
         if (data) {
             const current = data.activity || [];
@@ -714,7 +626,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const addAttachment = useCallback(async (taskId: string, type: Attachment['type'], name: string, url: string) => {
         if (!currentUser || !activeProjectId) return;
-
         const newAtt: Attachment = {
             id: generateId(),
             name,
@@ -723,8 +634,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             createdAt: Date.now(),
             createdBy: currentUser.id
         };
-
-        // Optimistic
         modifyActiveProject(p => ({
             ...p,
             tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
@@ -732,8 +641,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 attachments: [...t.attachments, newAtt]
             }))
         }));
-
-        // Database (Append to JSONB)
         const { data } = await supabase.from('tasks').select('attachments').eq('id', taskId).single();
         if (data) {
             const current = data.attachments || [];
@@ -743,8 +650,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const deleteAttachment = useCallback(async (taskId: string, attachmentId: string) => {
         if (!activeProjectId) return;
-
-        // Optimistic
         modifyActiveProject(p => ({
             ...p,
             tasks: findTaskAndUpdate(p.tasks, taskId, t => ({
@@ -752,8 +657,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 attachments: t.attachments.filter(a => a.id !== attachmentId)
             }))
         }));
-
-        // Database
         const { data } = await supabase.from('tasks').select('attachments').eq('id', taskId).single();
         if (data) {
             const current = data.attachments || [];
@@ -770,12 +673,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [modifyActiveProject]);
 
     const updateCurrentUser = useCallback(async (updates: Partial<User>) => {
-        if (!currentUser) {
-            alert("Debug: No currentUser found.");
-            return;
-        }
-
-        // Local Optimistic Update
+        if (!currentUser) return;
         const updatedUser = { ...currentUser, ...updates };
         setCurrentUser(updatedUser);
         setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
@@ -788,30 +686,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 avatar_url: updates.avatarUrl || currentUser.avatarUrl,
                 updated_at: new Date().toISOString()
             };
-
-            // Debug Payload
-            console.log(`Debug: User Email: ${currentUser.email}`);
-            const size = JSON.stringify(payload).length;
-            console.log(`Debug: Sending payload size: ${size} bytes`);
-
-            // alert(`Debug: Iniciando guardado... (Size: ${Math.round(size/1024)}KB)`); 
-
-            // Fix: Use upsert on 'profiles' table
             const { error, data } = await (supabase as any).from('profiles').upsert(payload).select();
-
-            if (error) {
-                throw error;
-            } else {
-                console.log("Debug: Saved successfully", data);
-                // Alert removed as per v0.9.48 - Database write confirmed working
-                if (!data || data.length === 0) {
-                    console.warn("Aviso: La base de datos no retornó datos, pero no lanzó error.");
-                }
-            }
-
+            if (error) throw error;
         } catch (e: any) {
             console.error("Error updating user:", e);
-            alert(`Error Critical: ${e.message || JSON.stringify(e)}`);
+            alert(`Error: ${e.message}`);
         }
     }, [currentUser]);
 
