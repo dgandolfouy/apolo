@@ -1,19 +1,43 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { Task, TaskStatus } from '../../types';
 import { AppContext } from '../../context/AppContext';
-// CORRECCIÓN: Usamos '../' porque 'ui' está hermano de 'features' dentro de 'components'
-import { Icons } from '../ui/Icons'; 
-import { ProgressRing } from '../ui/ProgressRing';
 import { getTaskProgress } from '../../utils/helpers';
 import { TASK_THEMES } from '../../constants/theme';
 
+// --- ÍCONOS INTEGRADOS (Para evitar errores de importación) ---
+const IconCheck = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+);
+const IconChevronDown = ({ size = 12 }: { size?: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+);
+const IconChevronUp = ({ size = 12 }: { size?: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="18 15 12 9 6 15"></polyline>
+    </svg>
+);
+const IconPaperclip = ({ size = 12 }: { size?: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+    </svg>
+);
+const IconPlus = ({ size = 16 }: { size?: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+);
+
 interface TaskCardProps { task: Task; depth: number; themeIndex?: number }
 
-// Memoized to prevent recursive render loops
 export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, themeIndex }) => {
     const ctx = useContext(AppContext);
-    const [isInside, setIsInside] = useState(false); // For drag UX
-    const [isAdding, setIsAdding] = useState(false); // For subtask input
+    const [isInside, setIsInside] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
     // --- 1. LÓGICA DE COLORES ---
     const effectiveThemeIndex = React.useMemo(() => {
@@ -79,7 +103,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                         ${isCompleted ? `bg-${theme.color} border-transparent` : 'border-gray-600 hover:border-white'}
                     `}
                 >
-                    {isCompleted && <Icons.Check size={14} className="text-black" />}
+                    {isCompleted && <IconCheck className="text-black" />}
                 </button>
 
                 {/* Contenido Principal */}
@@ -104,7 +128,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                                 onClick={(e) => { e.stopPropagation(); ctx?.toggleExpand(task.id); }}
                                 className="flex items-center gap-1 text-xs text-gray-400 hover:text-white px-2 py-1 rounded bg-white/5"
                             >
-                                {task.expanded ? <Icons.ChevronUp size={12}/> : <Icons.ChevronDown size={12}/>}
+                                {task.expanded ? <IconChevronUp size={12}/> : <IconChevronDown size={12}/>}
                                 <span>{task.subtasks.length} sub</span>
                             </button>
                         )}
@@ -112,7 +136,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                         {/* Adjuntos */}
                         {task.attachments?.length > 0 && (
                             <div className="flex items-center gap-1 text-gray-500">
-                                <Icons.Paperclip size={12} />
+                                <IconPaperclip size={12} />
                                 <span className="text-xs">{task.attachments.length}</span>
                             </div>
                         )}
@@ -142,7 +166,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                         />
                     ))}
 
-                    {/* BOTÓN AGREGAR SUBTAREA CORREGIDO */}
+                    {/* BOTÓN AGREGAR SUBTAREA (VISIBLE SIEMPRE) */}
                     {!isAdding ? (
                         <button 
                             onClick={() => setIsAdding(true)}
@@ -153,7 +177,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, depth, them
                                 ml-2 border border-dashed border-gray-700
                             "
                         >
-                            <Icons.Plus size={16} />
+                            <IconPlus size={16} />
                             <span>Añadir subtarea</span>
                         </button>
                     ) : (
