@@ -112,7 +112,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             isMounted = false;
             if (channel) supabase.removeChannel(channel);
         };
-    }, [currentUser?.id]); // Stable dependency to prevent loop
+    }, [currentUser?.id]);
 
     const markNotificationRead = async (id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -201,7 +201,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 rawTasks.forEach((t: any) => {
                     taskMap.set(t.id, {
                         ...t,
-                        createdBy: t.created_by,
+                        createdBy: t.owner_id, // Usamos owner_id como creador
                         createdAt: new Date(t.created_at).getTime(),
                         subtasks: [],
                         attachments: t.attachments || [],
@@ -321,7 +321,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         try {
             const { data, error } = await supabase.from('projects').insert({
-                owner_id: currentUser.id, // REQUIRED for RLS
+                owner_id: currentUser.id, 
                 title, 
                 subtitle, 
                 color, 
@@ -437,20 +437,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 parent_id: parentId,
                 title,
                 status: 'pending',
-                created_by: currentUser.id,
-                owner_id: currentUser.id, // --- CORRECCION CRITICA: Agregado owner_id para RLS ---
+                // created_by REMOVIDO para evitar el error de columna inexistente
+                owner_id: currentUser.id, 
                 position: maxPos + 1000
             }).select().single();
 
             if (error) throw error;
 
             if (data) {
-                // Background refresh to sync real ID if needed, though optimistic ID usually fine for session
                  fetchUserData();
             }
         } catch (e: any) { 
             console.error("Error adding task:", e);
-            alert(`Error al guardar tarea: ${e.message || "Revisa permisos de owner_id"}`);
+            alert(`Error al guardar tarea: ${e.message}`);
         }
 
     }, [currentUser, activeProjectId, modifyActiveProject, fetchUserData]);
